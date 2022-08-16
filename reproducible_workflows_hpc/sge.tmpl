@@ -1,0 +1,38 @@
+#!/bin/bash
+
+## The number of cores
+<%= if (!is.null(resources$ncpus)) sprintf(paste0("#$ -pe threaded ", resources$ncpus)) else "#$ -pe threaded 10" %>
+
+## The memory requested. Max should be under 240G across all cpus.
+<%= if (!is.null(resources$memory)) sprintf(paste0("#$ -l h_vmem=", resources$memory)) else "#$ -l h_vmem=10G" %>
+
+## Any GPU requested
+<%= if (!is.null(resources$ngpus)) sprintf(paste0("#$ -l gpu=", resources$ngpus)) %>
+
+## The name of the job, can be anything, simply used when displaying the list of running jobs
+#$ -N <%= job.name %>
+
+## Combining output/error messages into one file
+#$ -j y
+
+## Giving the name of the output log file
+#$ -o <%= log.file %>
+
+## One needs to tell the queue system to use the current directory as the working directory
+## Or else the script may fail as it will execute in your top level home directory /home/username
+#$ -cwd
+
+## Use environment variables
+#$ -V
+
+## Export value of DEBUGME environemnt var to slave
+export DEBUGME=<%= Sys.getenv("DEBUGME") %>
+
+module load cudnn/8.1.1.33-CUDA-10.2.89 rstudio/1.4.1717-R-4.1.0
+
+<%= sprintf("export OMP_NUM_THREADS=%i", resources$omp.threads) -%>
+<%= sprintf("export OPENBLAS_NUM_THREADS=%i", resources$blas.threads) -%>
+<%= sprintf("export MKL_NUM_THREADS=%i", resources$blas.threads) -%>
+
+Rscript -e 'batchtools::doJobCollection("<%= uri %>")'
+exit 0
